@@ -6,8 +6,10 @@ import 'dart:typed_data';
 import 'package:bignum/bignum.dart';
 import 'package:pointycastle/pointycastle.dart';
 import 'package:rsa_pkcs/rsa_pkcs.dart' as rsa;
-
+import 'package:logging/logging.dart';
 import 'corsac_jwt.dart';
+
+Logger _logger = new Logger('JWTRsaSha256Signer');
 
 class JWTRsaSha256Signer implements JWTSigner {
   final rsa.RSAPrivateKey _privateKey;
@@ -15,8 +17,16 @@ class JWTRsaSha256Signer implements JWTSigner {
 
   JWTRsaSha256Signer._(this._privateKey, this._publicKey);
 
+  /// Creates new signer.
+  ///
+  /// [privateKey] is only required when signing new tokens and otherwise can
+  /// be left as `null`. Similarly [publicKey] is only used to verify existing
+  /// signatures.
+  ///
+  /// Both `privateKey` and `publicKey` are expected to be strings in PEM
+  /// format.
   factory JWTRsaSha256Signer(
-      String privateKey, String publicKey, String password) {
+      {String privateKey, String publicKey, String password}) {
     rsa.RSAPKCSParser parser = new rsa.RSAPKCSParser();
 
     rsa.RSAPrivateKey priv;
@@ -66,15 +76,21 @@ class JWTRsaSha256Signer implements JWTSigner {
           'RS256 signer requires public key to verify signatures.');
     }
 
-    var s = new Signer('SHA-256/RSA');
-    var key = new RSAPublicKey(
-        _publicKey.modulus, new BigInteger(_publicKey.publicExponent));
-    var param = new ParametersWithRandom(
-        new PublicKeyParameter<RSAPublicKey>(key),
-        new SecureRandom("AES/CTR/PRNG"));
+    try {
+      var s = new Signer('SHA-256/RSA');
+      var key = new RSAPublicKey(
+          _publicKey.modulus, new BigInteger(_publicKey.publicExponent));
+      var param = new ParametersWithRandom(
+          new PublicKeyParameter<RSAPublicKey>(key),
+          new SecureRandom("AES/CTR/PRNG"));
 
-    s.init(false, param);
-    var rsaSignature = new RSASignature(new Uint8List.fromList(signature));
-    return s.verifySignature(new Uint8List.fromList(body), rsaSignature);
+      s.init(false, param);
+      var rsaSignature = new RSASignature(new Uint8List.fromList(signature));
+      return s.verifySignature(new Uint8List.fromList(body), rsaSignature);
+    } catch (e) {
+      _logger.warning(
+          'RS256 token verification failed with following error: ${e}.', e);
+      return false;
+    }
   }
 }
