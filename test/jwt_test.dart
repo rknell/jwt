@@ -32,29 +32,29 @@ void main() {
     });
 
     test('JWTBuilder can build signed token', () {
-      var signer = new JWTHmacSha256Signer();
-      var token = builder.getSignedToken(signer, 'secret1');
+      var signer = new JWTHmacSha256Signer('secret1');
+      var token = builder.getSignedToken(signer);
 
       expect(token, new isInstanceOf<JWT>());
       expect(token.issuer, equals('https://mycompany.com'));
-      expect(token.verify(signer, 'secret1'), isTrue);
-      expect(token.verify(signer, 'invalid'), isFalse);
+      expect(token.verify(signer), isTrue);
+      expect(token.verify(new JWTHmacSha256Signer('invalid')), isFalse);
     });
 
     test('it parses string token', () {
-      var signer = new JWTHmacSha256Signer();
+      var signer = new JWTHmacSha256Signer('secret1');
       var stringToken =
           'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL215Y29tcGFueS5jb20ifQ.R7OVbiAKtvSkE-qF0fCkZP_m2JGrHobbRayHhEsKuKU';
       var token = new JWT.parse(stringToken);
 
       expect(token, new isInstanceOf<JWT>());
       expect(token.issuer, equals('https://mycompany.com'));
-      expect(token.verify(signer, 'secret1'), isTrue);
-      expect(token.verify(signer, 'invalid'), isFalse);
+      expect(token.verify(signer), isTrue);
+      expect(token.verify(new JWTHmacSha256Signer('invalid')), isFalse);
     });
 
     test('it parses another token', () {
-      var signer = new JWTHmacSha256Signer();
+      var signer = new JWTHmacSha256Signer('secret');
       var stringToken =
           'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL215Zm9vYmFyLmNvbSIsImlhdCI6MTQ1NTIzMjI2NywiZXhwIjoxNDU1MjM0MDY3LCJuYmYiOjE0NTUyMzIyMzcsImJvZHkiOnsiYmxhaCI6ImJvb2EifX0.PXbDbE7YapU-6WvRqbdQ2OC1N2DScadvuQUqTHXopNc';
 
@@ -62,8 +62,8 @@ void main() {
 
       expect(token, new isInstanceOf<JWT>());
       expect(token.issuer, equals('https://myfoobar.com'));
-      expect(token.verify(signer, 'secret'), isTrue);
-      expect(token.verify(signer, 'invalid'), isFalse);
+      expect(token.verify(signer), isTrue);
+      expect(token.verify(new JWTHmacSha256Signer('invalid')), isFalse);
     });
 
     test('it supports all standard claims', () {
@@ -194,16 +194,17 @@ void main() {
     });
 
     test('signature is validated', () {
-      var signer = new JWTHmacSha256Signer();
-      var secret = 'secret';
-      var token = builder.getSignedToken(signer, secret);
+      var signer = new JWTHmacSha256Signer('secret');
+
+      var token = builder.getSignedToken(signer);
       var time = new DateTime.now().add(new Duration(seconds: 6));
       var validator = new JWTValidator(currentTime: time);
-      var errors = validator.validate(token, signer: signer, secret: 'wrong');
+      var errors =
+          validator.validate(token, signer: new JWTHmacSha256Signer('invalid'));
       expect(errors, isNotEmpty);
       expect(errors, contains('The token signature is invalid.'));
 
-      errors = validator.validate(token, signer: signer, secret: secret);
+      errors = validator.validate(token, signer: signer);
       expect(errors, isEmpty);
     });
   });

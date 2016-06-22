@@ -97,7 +97,9 @@ class JWT {
   JWT._(this.encodedHeader, this.encodedPayload, this.signature) {
     try {
       /// Dart's built-in BASE64URL codec needs padding (SDK 1.17).
+      // ignore: STRONG_MODE_DOWN_CAST_COMPOSITE
       _headers = _jsonToBase64Url.decode(_base64Padded(encodedHeader));
+      // ignore: STRONG_MODE_DOWN_CAST_COMPOSITE
       _claims = _jsonToBase64Url.decode(_base64Padded(encodedPayload));
     } catch (e) {
       throw new JWTError('Could not decode token string. Error: ${e}.');
@@ -148,10 +150,10 @@ class JWT {
   /// Verifies this token's signature.
   ///
   /// Returns `true` if signature is valid and `false` otherwise.
-  bool verify(JWTSigner signer, secret) {
-    var actualSignature =
-        signer.sign(encodedHeader + '.' + encodedPayload, secret);
-    return (actualSignature == signature);
+  bool verify(JWTSigner signer) {
+    var body = UTF8.encode(encodedHeader + '.' + encodedPayload);
+    var sign = BASE64URL.decode(_base64Padded(signature));
+    return signer.verify(body, sign);
   }
 
   /// Returns value associated with claim.
@@ -221,14 +223,15 @@ class JWTBuilder {
 
   /// Builds and returns signed JWT.
   ///
-  /// The token will be signed with provided [signer] and [secret].
+  /// The token will be signed with provided [signer].
   /// To create unsigned token use [getToken].
-  JWT getSignedToken(JWTSigner signer, secret) {
+  JWT getSignedToken(JWTSigner signer) {
     var headers = {'typ': 'JWT', 'alg': signer.algorithm};
     String encodedHeader = _base64Unpadded(_jsonToBase64Url.encode(headers));
     String encodedPayload = _base64Unpadded(_jsonToBase64Url.encode(_claims));
     var body = encodedHeader + '.' + encodedPayload;
-    var signature = signer.sign(body, secret);
+    var signature =
+        _base64Unpadded(BASE64URL.encode(signer.sign(UTF8.encode(body))));
     return new JWT._(encodedHeader, encodedPayload, signature);
   }
 }
@@ -236,24 +239,37 @@ class JWTBuilder {
 /// Signer interface for JWT.
 abstract class JWTSigner {
   String get algorithm;
-  String sign(String body, secret);
+  List<int> sign(List<int> body);
+  bool verify(List<int> body, List<int> signature);
 }
 
 /// Signer implementing HMAC encryption using SHA256 hashing.
 class JWTHmacSha256Signer implements JWTSigner {
+  final List<int> secret;
+
+  JWTHmacSha256Signer(String secret) : secret = UTF8.encode(secret);
+
   @override
   String get algorithm => 'HS256';
 
   @override
-  String sign(String body, String secret) {
-    var secretBytes = UTF8.encode(secret);
-    var hmac = new Hmac(sha256, secretBytes);
-    var data = UTF8.encode(body);
-    var hash = hmac.convert(data).bytes;
-    var value = BASE64URL.encode(hash);
+  List<int> sign(List<int> body) {
+    var hmac = new Hmac(sha256, secret);
+    return hmac.convert(body).bytes;
+  }
 
-    /// Base64Url for JWT must not include any padding with `=`.
-    return _base64Unpadded(value);
+  @override
+  bool verify(List<int> body, List<int> signature) {
+    var actual = sign(body);
+    if (actual.length == signature.length) {
+      // constant-time comparison
+      bool isEqual = true;
+      for (var i = 0; i < actual.length; i++) {
+        if (actual[i] != signature[i]) isEqual = false;
+      }
+      return isEqual;
+    } else
+      return false;
   }
 }
 
@@ -281,7 +297,7 @@ class JWTValidator {
   /// If [signer] and [secret] parameters are provided then token signature
   /// will also be verified. Otherwise signature must be verified manually using
   /// [JWT.verify] method.
-  Set<String> validate(JWT token, {JWTSigner signer, secret}) {
+  Set<String> validate(JWT token, {JWTSigner signer}) {
     var errors = new Set<String>();
 
     var currentTimestamp = _secondsSinceEpoch(currentTime);
@@ -313,9 +329,7 @@ class JWTValidator {
       errors.add('The token unique identifier is invalid.');
     }
 
-    if (signer is JWTSigner &&
-        secret != null &&
-        !token.verify(signer, secret)) {
+    if (signer is JWTSigner && !token.verify(signer)) {
       errors.add('The token signature is invalid.');
     }
 

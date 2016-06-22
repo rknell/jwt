@@ -8,6 +8,11 @@ environment:
   sdk: ">=1.16.0 <2.0.0"
 
 dependencies:
+  pointycastle: "^0.10.0"
+  rsa_pkcs:
+    git:
+      url: https://github.com/pulyaevskiy/rsa_pkcs.git
+      ref: upgrade
   crypto: "^2.0.0"
 
 dev_dependencies:

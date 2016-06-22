@@ -19,14 +19,14 @@ void main() {
     ..setClaim('data', {'userId': 836})
     ..getToken(); // returns token without signature
 
-  var signer = new JWTHmacSha256Signer();
-  var signedToken = builder.getSignedToken(signer, 'sharedSecret');
+  var signer = new JWTHmacSha256Signer('sharedSecret');
+  var signedToken = builder.getSignedToken(signer);
   print(signedToken); // prints encoded JWT
   var stringToken = signedToken.toString();
 
   var decodedToken = new JWT.parse(stringToken);
   // Verify signature:
-  print(decodedToken.verify(signer, 'sharedSecret')); // true
+  print(decodedToken.verify(signer)); // true
 
   // Validate claims:
   var validator = new JWTValidator() // uses DateTime.now() by default
@@ -36,7 +36,13 @@ void main() {
 }
 ```
 
-Only HMAC Sha256 signatures are supported at this moment.
+Supported signers:
+
+* HS256 (`JwtHmacSha256Signer`).
+* RS256 (`JwtRsaSha256Signer`) via separate library in this package:
+  ```
+  import 'package:corsac_jwt/rs256.dart';
+  ```
 
 Refer to documentation for more details.
 
