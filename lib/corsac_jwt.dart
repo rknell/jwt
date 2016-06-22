@@ -31,20 +31,12 @@ library corsac_jwt;
 
 import 'dart:convert';
 
-import 'package:crypto/crypto.dart' show HMAC, SHA256;
+import 'package:crypto/crypto.dart';
 
-final _jsonToBase64 = JSON.fuse(UTF8.fuse(BASE64));
+final _jsonToBase64Url = JSON.fuse(UTF8.fuse(BASE64URL));
 
 int _secondsSinceEpoch(DateTime dateTime) {
   return (dateTime.millisecondsSinceEpoch / 1000).floor();
-}
-
-class JWTError {
-  final String message;
-  JWTError(this.message);
-
-  @override
-  String toString() => message;
 }
 
 String _base64Padded(String value) {
@@ -54,19 +46,31 @@ String _base64Padded(String value) {
   } else if (mod == 3) {
     return value.padRight(value.length + 1, '=');
   } else if (mod == 2) {
-    return value.padRight(value.length + 2, '==');
+    return value.padRight(value.length + 2, '=');
   } else {
-    throw new FormatException('Could not parse Base64 encoded string.', value);
+    return value; // let it fail when decoding
   }
 }
 
-// See details: https://tools.ietf.org/html/rfc4648#page-7
-String _base64urlSafe(String value) {
-  return value.replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
+String _base64Unpadded(String value) {
+  if (value.endsWith('==')) return value.substring(0, value.length - 2);
+  if (value.endsWith('=')) return value.substring(0, value.length - 1);
+  return value;
+}
+
+/// Error thrown by `JWT` when parsing tokens from string.
+class JWTError implements Exception {
+  final String message;
+
+  JWTError(this.message);
+
+  @override
+  String toString() => 'JWTError: $message';
 }
 
 /// JSON Web Token.
 class JWT {
+  /// List of standard (reserved) claims.
   static const Iterable<String> reservedClaims = const [
     'iss',
     'aud',
@@ -92,9 +96,9 @@ class JWT {
 
   JWT._(this.encodedHeader, this.encodedPayload, this.signature) {
     try {
-      /// Dart's built-in BASE64 codec needs padding (SDK 1.14).
-      _headers = _jsonToBase64.decode(_base64Padded(encodedHeader));
-      _claims = _jsonToBase64.decode(_base64Padded(encodedPayload));
+      /// Dart's built-in BASE64URL codec needs padding (SDK 1.17).
+      _headers = _jsonToBase64Url.decode(_base64Padded(encodedHeader));
+      _claims = _jsonToBase64Url.decode(_base64Padded(encodedPayload));
     } catch (e) {
       throw new JWTError('Could not decode token string. Error: ${e}.');
     }
@@ -141,21 +145,20 @@ class JWT {
     return buffer.toString();
   }
 
+  /// Verifies this token's signature.
+  ///
+  /// Returns `true` if signature is valid and `false` otherwise.
   bool verify(JWTSigner signer, secret) {
     var actualSignature =
         signer.sign(encodedHeader + '.' + encodedPayload, secret);
-    // We don't know if original signature was encoded with standard Base64 or
-    // the "url safe" version of it. So for consistency we compare
-    // "url safe" versions.
-    return (_base64urlSafe(actualSignature) == _base64urlSafe(signature));
+    return (actualSignature == signature);
   }
 
-  dynamic getClaim(String s) => _claims[s];
+  /// Returns value associated with claim.
+  dynamic getClaim(String key) => _claims[key];
 }
 
 /// Builder for JSON Web Tokens.
-///
-/// Tokens produced by this builder are always "url safe".
 class JWTBuilder {
   final Map<String, dynamic> _claims = {};
 
@@ -164,22 +167,27 @@ class JWTBuilder {
     _claims['iss'] = issuer;
   }
 
+  /// Token audience (standard `aud` claim).
   void set audience(String audience) {
     _claims['aud'] = audience;
   }
 
+  /// Token issued at timestamp in seconds (standard `iat` claim).
   void set issuedAt(DateTime issuedAt) {
     _claims['iat'] = _secondsSinceEpoch(issuedAt);
   }
 
+  /// Token expires timestamp in seconds (standard `exp` claim).
   void set expiresAt(DateTime expiresAt) {
     _claims['exp'] = _secondsSinceEpoch(expiresAt);
   }
 
+  /// Sets value for standard `nbf` claim.
   void set notBefore(DateTime notBefore) {
     _claims['nbf'] = _secondsSinceEpoch(notBefore);
   }
 
+  /// Sets standard `sub` claim value.
   void set subject(String subject) {
     _claims['sub'] = subject;
   }
@@ -206,10 +214,9 @@ class JWTBuilder {
   /// To create signed token use [getSignedToken] instead.
   JWT getToken() {
     var headers = {'typ': 'JWT', 'alg': 'none'};
-    var encodedHeader = _jsonToBase64.encode(headers);
-    var encodedPayload = _jsonToBase64.encode(_claims);
-    return new JWT._(
-        _base64urlSafe(encodedHeader), _base64urlSafe(encodedPayload), null);
+    String encodedHeader = _base64Unpadded(_jsonToBase64Url.encode(headers));
+    String encodedPayload = _base64Unpadded(_jsonToBase64Url.encode(_claims));
+    return new JWT._(encodedHeader, encodedPayload, null);
   }
 
   /// Builds and returns signed JWT.
@@ -218,10 +225,10 @@ class JWTBuilder {
   /// To create unsigned token use [getToken].
   JWT getSignedToken(JWTSigner signer, secret) {
     var headers = {'typ': 'JWT', 'alg': signer.algorithm};
-    var encodedHeader = _base64urlSafe(_jsonToBase64.encode(headers));
-    var encodedPayload = _base64urlSafe(_jsonToBase64.encode(_claims));
+    String encodedHeader = _base64Unpadded(_jsonToBase64Url.encode(headers));
+    String encodedPayload = _base64Unpadded(_jsonToBase64Url.encode(_claims));
     var body = encodedHeader + '.' + encodedPayload;
-    var signature = _base64urlSafe(signer.sign(body, secret));
+    var signature = signer.sign(body, secret);
     return new JWT._(encodedHeader, encodedPayload, signature);
   }
 }
@@ -240,11 +247,13 @@ class JWTHmacSha256Signer implements JWTSigner {
   @override
   String sign(String body, String secret) {
     var secretBytes = UTF8.encode(secret);
-    var hmac = new HMAC(new SHA256(), secretBytes);
+    var hmac = new Hmac(sha256, secretBytes);
     var data = UTF8.encode(body);
-    hmac.add(data);
-    var hash = hmac.close();
-    return BASE64.encode(hash);
+    var hash = hmac.convert(data).bytes;
+    var value = BASE64URL.encode(hash);
+
+    /// Base64Url for JWT must not include any padding with `=`.
+    return _base64Unpadded(value);
   }
 }
 

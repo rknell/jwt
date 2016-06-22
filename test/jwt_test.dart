@@ -44,7 +44,7 @@ void main() {
     test('it parses string token', () {
       var signer = new JWTHmacSha256Signer();
       var stringToken =
-          'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL215Y29tcGFueS5jb20ifQ==.db0dbAa1MSf9SYFxXq8Q0sd2/FDgKsgkzT8Z7tYX38c=';
+          'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL215Y29tcGFueS5jb20ifQ.R7OVbiAKtvSkE-qF0fCkZP_m2JGrHobbRayHhEsKuKU';
       var token = new JWT.parse(stringToken);
 
       expect(token, new isInstanceOf<JWT>());
@@ -53,10 +53,11 @@ void main() {
       expect(token.verify(signer, 'invalid'), isFalse);
     });
 
-    test('it parses urlSafe token (base64url encoded)', () {
+    test('it parses another token', () {
       var signer = new JWTHmacSha256Signer();
       var stringToken =
           'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL215Zm9vYmFyLmNvbSIsImlhdCI6MTQ1NTIzMjI2NywiZXhwIjoxNDU1MjM0MDY3LCJuYmYiOjE0NTUyMzIyMzcsImJvZHkiOnsiYmxhaCI6ImJvb2EifX0.PXbDbE7YapU-6WvRqbdQ2OC1N2DScadvuQUqTHXopNc';
+
       var token = new JWT.parse(stringToken);
 
       expect(token, new isInstanceOf<JWT>());
