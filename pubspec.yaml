@@ -10,10 +10,7 @@ environment:
 dependencies:
   logging: "^0.11.3"
   pointycastle: "^0.10.0"
-  rsa_pkcs:
-    git:
-      url: https://github.com/pulyaevskiy/rsa_pkcs.git
-      ref: asn1lib-fix
+  rsa_pkcs: "^0.1.2"
   crypto: "^2.0.0"
 
 dev_dependencies:
