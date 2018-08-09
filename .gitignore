@@ -4,3 +4,9 @@ packages
 .packages
 doc/api
 bin/
+
+coverage/
+.test_coverage.dart
+
+# IDEs
+.idea

@@ -1,10 +1,8 @@
-# Corsac JWT
+Lightweight implementation of JSON Web Tokens (JWT).
 
 [![Build Status](https://travis-ci.org/corsac-dart/jwt.svg?branch=master)](https://travis-ci.org/corsac-dart/jwt)
 [![codecov](https://codecov.io/gh/corsac-dart/jwt/branch/master/graph/badge.svg)](https://codecov.io/gh/corsac-dart/jwt)
 
-
-Lightweight implementation of JSON Web Tokens (JWT).
 
 ## Usage
 
@@ -39,10 +37,8 @@ void main() {
 Supported signers:
 
 * HS256 (`JwtHmacSha256Signer`).
-* RS256 (`JwtRsaSha256Signer`) via separate library in this package:
-  ```
-  import 'package:corsac_jwt/rs256.dart';
-  ```
+* RS256 (`JwtRsaSha256Signer`) - temporarily removed due to some dependencies not ready for Dart 2.
+  See https://github.com/corsac-dart/jwt/issues/2 for more details
 
 Refer to documentation for more details.
 

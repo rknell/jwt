@@ -33,7 +33,7 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 
-final _jsonToBase64Url = JSON.fuse(UTF8.fuse(BASE64URL));
+final _jsonToBase64Url = json.fuse(utf8.fuse(base64Url));
 
 int _secondsSinceEpoch(DateTime dateTime) {
   return (dateTime.millisecondsSinceEpoch / 1000).floor();
@@ -97,10 +97,10 @@ class JWT {
   JWT._(this.encodedHeader, this.encodedPayload, this.signature) {
     try {
       /// Dart's built-in BASE64URL codec needs padding (SDK 1.17).
-      // ignore: STRONG_MODE_DOWN_CAST_COMPOSITE
-      _headers = _jsonToBase64Url.decode(_base64Padded(encodedHeader));
-      // ignore: STRONG_MODE_DOWN_CAST_COMPOSITE
-      _claims = _jsonToBase64Url.decode(_base64Padded(encodedPayload));
+      _headers = new Map<String, String>.from(
+          _jsonToBase64Url.decode(_base64Padded(encodedHeader)));
+      _claims = new Map<String, dynamic>.from(
+          _jsonToBase64Url.decode(_base64Padded(encodedPayload)));
     } catch (e) {
       throw new JWTError('Could not decode token string. Error: ${e}.');
     }
@@ -131,10 +131,22 @@ class JWT {
 
   /// The audience of this token (value of standard `aud` claim).
   String get audience => _claims['aud'];
+
+  /// The time this token was issued (value of standard `iat` claim).
   int get issuedAt => _claims['iat'];
+
+  /// The expiration time of this token (value of standard `exp` claim).
   int get expiresAt => _claims['exp'];
+
+  /// The time before which this token must not be accepted (value of standard
+  /// `nbf` claim).
   int get notBefore => _claims['nbf'];
+
+  /// Identifies the principal that is the subject of this token (value of
+  /// standard `sub` claim).
   String get subject => _claims['sub'];
+
+  /// Unique identifier of this token (value of standard `jti` claim).
   String get id => _claims['jti'];
 
   @override
@@ -147,16 +159,16 @@ class JWT {
     return buffer.toString();
   }
 
-  /// Verifies this token's signature.
+  /// Verifies this token's signature using [signer].
   ///
   /// Returns `true` if signature is valid and `false` otherwise.
   bool verify(JWTSigner signer) {
-    var body = UTF8.encode(encodedHeader + '.' + encodedPayload);
-    var sign = BASE64URL.decode(_base64Padded(signature));
+    var body = utf8.encode(encodedHeader + '.' + encodedPayload);
+    var sign = base64Url.decode(_base64Padded(signature));
     return signer.verify(body, sign);
   }
 
-  /// Returns value associated with claim.
+  /// Returns value associated with claim specified by [key].
   dynamic getClaim(String key) => _claims[key];
 }
 
@@ -223,7 +235,8 @@ class JWTBuilder {
 
   /// Builds and returns signed JWT.
   ///
-  /// The token will be signed with provided [signer].
+  /// The token is signed with provided [signer].
+  ///
   /// To create unsigned token use [getToken].
   JWT getSignedToken(JWTSigner signer) {
     var headers = {'typ': 'JWT', 'alg': signer.algorithm};
@@ -231,7 +244,7 @@ class JWTBuilder {
     String encodedPayload = _base64Unpadded(_jsonToBase64Url.encode(_claims));
     var body = encodedHeader + '.' + encodedPayload;
     var signature =
-        _base64Unpadded(BASE64URL.encode(signer.sign(UTF8.encode(body))));
+        _base64Unpadded(base64Url.encode(signer.sign(utf8.encode(body))));
     return new JWT._(encodedHeader, encodedPayload, signature);
   }
 }
@@ -247,7 +260,7 @@ abstract class JWTSigner {
 class JWTHmacSha256Signer implements JWTSigner {
   final List<int> secret;
 
-  JWTHmacSha256Signer(String secret) : secret = UTF8.encode(secret);
+  JWTHmacSha256Signer(String secret) : secret = utf8.encode(secret);
 
   @override
   String get algorithm => 'HS256';
@@ -294,7 +307,7 @@ class JWTValidator {
   /// Validates provided [token] and returns a list of validation errors.
   /// Empty list indicates there were no validation errors.
   ///
-  /// If [signer] and [secret] parameters are provided then token signature
+  /// If [signer] parameter is provided then token signature
   /// will also be verified. Otherwise signature must be verified manually using
   /// [JWT.verify] method.
   Set<String> validate(JWT token, {JWTSigner signer}) {

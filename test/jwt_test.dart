@@ -8,7 +8,7 @@ int _secondsSinceEpoch(DateTime dateTime) {
 }
 
 void main() {
-  group('JWT:', () {
+  group('$JWT', () {
     DateTime now;
     JWTBuilder builder;
 
@@ -25,9 +25,14 @@ void main() {
         ..subject = 'subj';
     });
 
+    test('JWTError toString', () {
+      final error = new JWTError('failed');
+      expect(error.toString(), 'JWTError: failed');
+    });
+
     test('JWTBuilder can build unsigned token', () {
       var token = builder.getToken();
-      expect(token, new isInstanceOf<JWT>());
+      expect(token, const TypeMatcher<JWT>());
       expect(token.issuer, equals('https://mycompany.com'));
     });
 
@@ -35,7 +40,7 @@ void main() {
       var signer = new JWTHmacSha256Signer('secret1');
       var token = builder.getSignedToken(signer);
 
-      expect(token, new isInstanceOf<JWT>());
+      expect(token, const TypeMatcher<JWT>());
       expect(token.issuer, equals('https://mycompany.com'));
       expect(token.verify(signer), isTrue);
       expect(token.verify(new JWTHmacSha256Signer('invalid')), isFalse);
@@ -47,7 +52,7 @@ void main() {
           'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL215Y29tcGFueS5jb20ifQ.R7OVbiAKtvSkE-qF0fCkZP_m2JGrHobbRayHhEsKuKU';
       var token = new JWT.parse(stringToken);
 
-      expect(token, new isInstanceOf<JWT>());
+      expect(token, const TypeMatcher<JWT>());
       expect(token.issuer, equals('https://mycompany.com'));
       expect(token.verify(signer), isTrue);
       expect(token.verify(new JWTHmacSha256Signer('invalid')), isFalse);
@@ -60,15 +65,26 @@ void main() {
 
       var token = new JWT.parse(stringToken);
 
-      expect(token, new isInstanceOf<JWT>());
+      expect(token, const TypeMatcher<JWT>());
       expect(token.issuer, equals('https://myfoobar.com'));
       expect(token.verify(signer), isTrue);
       expect(token.verify(new JWTHmacSha256Signer('invalid')), isFalse);
+      expect(token.toString(), stringToken);
+    });
+
+    test('it throws JWTError if token is invalid', () {
+      var badToken1 =
+          'invalid.eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL215Y29tcGFueS5jb20ifQ.R7OVbiAKtvSkE-qF0fCkZP_m2JGrHobbRayHhEsKuKU';
+      var badToken2 = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.invalid';
+      expect(
+          () => JWT.parse(badToken1), throwsA(const TypeMatcher<JWTError>()));
+      expect(
+          () => JWT.parse(badToken2), throwsA(const TypeMatcher<JWTError>()));
     });
 
     test('it supports all standard claims', () {
       var token = builder.getToken();
-      expect(token, new isInstanceOf<JWT>());
+      expect(token, const TypeMatcher<JWT>());
       expect(token.issuer, equals('https://mycompany.com'));
       expect(token.audience, equals('people'));
       expect(token.issuedAt, equals(_secondsSinceEpoch(now)));
@@ -77,6 +93,10 @@ void main() {
       expect(token.id, equals('identifier'));
       expect(token.subject, equals('subj'));
       expect(token.algorithm, equals('none'));
+    });
+
+    test('it prevents setting standard claims using setClaim', () {
+      expect(() => builder.setClaim('iss', 'bad'), throwsArgumentError);
     });
 
     test('it supports custom (private) claims', () {
@@ -95,6 +115,11 @@ void main() {
       expect(parsedToken.issuer, equals('https://foobar.com'));
       expect(parsedToken.getClaim('pld'), equals('payload'));
       expect(parsedToken.getClaim('map'), equals({'key': 'value'}));
+    });
+
+    test('validator uses current time by default', () {
+      final validator = new JWTValidator();
+      expect(validator.currentTime, isNotNull);
     });
 
     test('iss claim is validated', () {
