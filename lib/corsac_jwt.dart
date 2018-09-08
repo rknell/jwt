@@ -83,6 +83,9 @@ class JWT {
 
   Map<String, String> _headers;
   Map<String, dynamic> _claims;
+  
+  // Allows access to the full claims Map
+  Map<String, dynamic> get claims => _claims;
 
   /// Contains original Base64 encoded token header.
   final String encodedHeader;
