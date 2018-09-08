@@ -115,6 +115,15 @@ void main() {
       expect(parsedToken.issuer, equals('https://foobar.com'));
       expect(parsedToken.getClaim('pld'), equals('payload'));
       expect(parsedToken.getClaim('map'), equals({'key': 'value'}));
+
+      var claims = parsedToken.claims;
+      
+      expect(claims['pld'], equals('payload'));
+      expect(claims['map'], equals({'key': 'value'}));
+
+      claims['pld'] = 'good times!';
+      expect(claims['pld'], equals('good times!'));
+      expect(parsedToken.getClaim('pld'), equals('payload'));
     });
 
     test('validator uses current time by default', () {
