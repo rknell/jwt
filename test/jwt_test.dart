@@ -117,7 +117,7 @@ void main() {
       expect(parsedToken.getClaim('map'), equals({'key': 'value'}));
 
       var claims = parsedToken.claims;
-      
+
       expect(claims['pld'], equals('payload'));
       expect(claims['map'], equals({'key': 'value'}));
 
