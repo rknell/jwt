@@ -37,8 +37,7 @@ void main() {
 Supported signers:
 
 * HS256 (`JwtHmacSha256Signer`).
-* RS256 (`JwtRsaSha256Signer`) - temporarily removed due to some dependencies not ready for Dart 2.
-  See https://github.com/corsac-dart/jwt/issues/2 for more details
+* RS256 (`JwtRsaSha256Signer`)
 
 Refer to documentation for more details.
 

@@ -1,3 +1,7 @@
+## 0.2.0
+
+- Added back RS256 signer (#11)
+
 ## 0.1.2
 
 - Exposed complete `claims` Map (read-only).
