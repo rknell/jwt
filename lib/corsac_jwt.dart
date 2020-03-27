@@ -1,5 +1,7 @@
 library corsac_jwt;
 
+import 'dart:convert';
+
 /// Lightweight JSON Web Token (JWT) implementation.
 ///
 /// ## Usage
@@ -30,14 +32,13 @@ library corsac_jwt;
 ///
 
 import 'dart:typed_data';
-import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
+import 'package:logging/logging.dart';
 import 'package:pointycastle/pointycastle.dart';
 import 'package:rsa_pkcs/rsa_pkcs.dart' as rsa;
-import 'package:logging/logging.dart';
 
-Logger _logger = new Logger('JWTRsaSha256Signer');
+Logger _logger = Logger('JWTRsaSha256Signer');
 
 class JWTRsaSha256Signer implements JWTSigner {
   final rsa.RSAPrivateKey _privateKey;
@@ -55,24 +56,26 @@ class JWTRsaSha256Signer implements JWTSigner {
   /// format.
   factory JWTRsaSha256Signer(
       {String privateKey, String publicKey, String password}) {
-    rsa.RSAPKCSParser parser = new rsa.RSAPKCSParser();
+    final parser = rsa.RSAPKCSParser();
 
     rsa.RSAPrivateKey priv;
     rsa.RSAPublicKey pub;
     if (privateKey is String) {
-      rsa.RSAKeyPair pair = parser.parsePEM(privateKey, password: password);
-      if (pair.private is! rsa.RSAPrivateKey)
-        throw new JWTError('Invalid private RSA key.');
+      final pair = parser.parsePEM(privateKey, password: password);
+      if (pair.private is! rsa.RSAPrivateKey) {
+        throw JWTError('Invalid private RSA key.');
+      }
       priv = pair.private;
     }
 
     if (publicKey is String) {
-      rsa.RSAKeyPair pair = parser.parsePEM(publicKey, password: password);
-      if (pair.public is! rsa.RSAPublicKey)
-        throw new JWTError('Invalid public RSA key.');
+      final pair = parser.parsePEM(publicKey, password: password);
+      if (pair.public is! rsa.RSAPublicKey) {
+        throw JWTError('Invalid public RSA key.');
+      }
       pub = pair.public;
     }
-    return new JWTRsaSha256Signer._(priv, pub);
+    return JWTRsaSha256Signer._(priv, pub);
   }
 
   @override
@@ -81,18 +84,19 @@ class JWTRsaSha256Signer implements JWTSigner {
   @override
   List<int> sign(List<int> body) {
     if (_privateKey == null) {
-      throw new StateError(
+      throw StateError(
           'RS256 signer requires private key to create signatures.');
     }
-    var s = new Signer('SHA-256/RSA');
-    var key = new RSAPrivateKey(_privateKey.modulus,
-        _privateKey.privateExponent, _privateKey.prime1, _privateKey.prime2);
-    var param = new ParametersWithRandom(
-        new PrivateKeyParameter<RSAPrivateKey>(key),
-        new SecureRandom("AES/CTR/PRNG"));
+    var s = Signer('SHA-256/RSA');
+    var key = RSAPrivateKey(_privateKey.modulus, _privateKey.privateExponent,
+        _privateKey.prime1, _privateKey.prime2);
+    var param = ParametersWithRandom(
+      PrivateKeyParameter<RSAPrivateKey>(key),
+      SecureRandom('AES/CTR/PRNG'),
+    );
 
     s.init(true, param);
-    RSASignature signature = s.generateSignature(new Uint8List.fromList(body));
+    RSASignature signature = s.generateSignature(Uint8List.fromList(body));
 
     return signature.bytes.toList(growable: false);
   }
@@ -100,21 +104,22 @@ class JWTRsaSha256Signer implements JWTSigner {
   @override
   bool verify(List<int> body, List<int> signature) {
     if (_publicKey == null) {
-      throw new StateError(
+      throw StateError(
           'RS256 signer requires public key to verify signatures.');
     }
 
     try {
-      var s = new Signer('SHA-256/RSA');
-      var key = new RSAPublicKey(
-          _publicKey.modulus, new BigInt.from(_publicKey.publicExponent));
-      var param = new ParametersWithRandom(
-          new PublicKeyParameter<RSAPublicKey>(key),
-          new SecureRandom("AES/CTR/PRNG"));
+      var s = Signer('SHA-256/RSA');
+      var key = RSAPublicKey(
+          _publicKey.modulus, BigInt.from(_publicKey.publicExponent));
+      var param = ParametersWithRandom(
+        PublicKeyParameter<RSAPublicKey>(key),
+        SecureRandom('AES/CTR/PRNG'),
+      );
 
       s.init(false, param);
-      var rsaSignature = new RSASignature(new Uint8List.fromList(signature));
-      return s.verifySignature(new Uint8List.fromList(body), rsaSignature);
+      var rsaSignature = RSASignature(Uint8List.fromList(signature));
+      return s.verifySignature(Uint8List.fromList(body), rsaSignature);
     } catch (e) {
       _logger.warning(
           'RS256 token verification failed with following error: ${e}.', e);
@@ -161,7 +166,7 @@ class JWTError implements Exception {
 /// JSON Web Token.
 class JWT {
   /// List of standard (reserved) claims.
-  static const Iterable<String> reservedClaims = const [
+  static const reservedClaims = [
     'iss',
     'aud',
     'iat',
@@ -190,12 +195,12 @@ class JWT {
   JWT._(this.encodedHeader, this.encodedPayload, this.signature) {
     try {
       /// Dart's built-in BASE64URL codec needs padding (SDK 1.17).
-      _headers = new Map<String, String>.from(
+      _headers = Map<String, String>.from(
           _jsonToBase64Url.decode(_base64Padded(encodedHeader)));
-      _claims = new Map<String, dynamic>.from(
+      _claims = Map<String, dynamic>.from(
           _jsonToBase64Url.decode(_base64Padded(encodedPayload)));
     } catch (e) {
-      throw new JWTError('Could not decode token string. Error: ${e}.');
+      throw JWTError('Could not decode token string. Error: ${e}.');
     }
   }
 
@@ -204,11 +209,11 @@ class JWT {
   factory JWT.parse(String token) {
     var parts = token.split('.');
     if (parts.length == 2) {
-      return new JWT._(parts.first, parts.last, null);
+      return JWT._(parts.first, parts.last, null);
     } else if (parts.length == 3) {
-      return new JWT._(parts[0], parts[1], parts[2]);
+      return JWT._(parts[0], parts[1], parts[2]);
     } else {
-      throw new JWTError('Invalid token string format for JWT.');
+      throw JWTError('Invalid token string format for JWT.');
     }
   }
 
@@ -244,7 +249,7 @@ class JWT {
 
   @override
   String toString() {
-    var buffer = new StringBuffer();
+    var buffer = StringBuffer();
     buffer.writeAll([encodedHeader, '.', encodedPayload]);
     if (signature is String) {
       buffer.writeAll(['.', signature]);
@@ -270,36 +275,36 @@ class JWTBuilder {
   final Map<String, dynamic> _claims = {};
 
   /// Token issuer (standard `iss` claim).
-  void set issuer(String issuer) {
+  set issuer(String issuer) {
     _claims['iss'] = issuer;
   }
 
   /// Token audience (standard `aud` claim).
-  void set audience(String audience) {
+  set audience(String audience) {
     _claims['aud'] = audience;
   }
 
   /// Token issued at timestamp in seconds (standard `iat` claim).
-  void set issuedAt(DateTime issuedAt) {
+  set issuedAt(DateTime issuedAt) {
     _claims['iat'] = _secondsSinceEpoch(issuedAt);
   }
 
   /// Token expires timestamp in seconds (standard `exp` claim).
-  void set expiresAt(DateTime expiresAt) {
+  set expiresAt(DateTime expiresAt) {
     _claims['exp'] = _secondsSinceEpoch(expiresAt);
   }
 
   /// Sets value for standard `nbf` claim.
-  void set notBefore(DateTime notBefore) {
+  set notBefore(DateTime notBefore) {
     _claims['nbf'] = _secondsSinceEpoch(notBefore);
   }
 
   /// Sets standard `sub` claim value.
-  void set subject(String subject) {
+  set subject(String subject) {
     _claims['sub'] = subject;
   }
 
-  void set id(String id) {
+  set id(String id) {
     _claims['jti'] = id;
   }
 
@@ -310,7 +315,7 @@ class JWTBuilder {
   /// case.
   void setClaim(String name, value) {
     if (JWT.reservedClaims.contains(name.toLowerCase())) {
-      throw new ArgumentError.value(
+      throw ArgumentError.value(
           name, 'name', 'Only custom claims can be set with setClaim.');
     }
     _claims[name] = value;
@@ -320,10 +325,10 @@ class JWTBuilder {
   ///
   /// To create signed token use [getSignedToken] instead.
   JWT getToken() {
-    var headers = {'typ': 'JWT', 'alg': 'none'};
-    String encodedHeader = _base64Unpadded(_jsonToBase64Url.encode(headers));
-    String encodedPayload = _base64Unpadded(_jsonToBase64Url.encode(_claims));
-    return new JWT._(encodedHeader, encodedPayload, null);
+    final headers = {'typ': 'JWT', 'alg': 'none'};
+    final encodedHeader = _base64Unpadded(_jsonToBase64Url.encode(headers));
+    final encodedPayload = _base64Unpadded(_jsonToBase64Url.encode(_claims));
+    return JWT._(encodedHeader, encodedPayload, null);
   }
 
   /// Builds and returns signed JWT.
@@ -333,12 +338,12 @@ class JWTBuilder {
   /// To create unsigned token use [getToken].
   JWT getSignedToken(JWTSigner signer) {
     var headers = {'typ': 'JWT', 'alg': signer.algorithm};
-    String encodedHeader = _base64Unpadded(_jsonToBase64Url.encode(headers));
-    String encodedPayload = _base64Unpadded(_jsonToBase64Url.encode(_claims));
+    final encodedHeader = _base64Unpadded(_jsonToBase64Url.encode(headers));
+    final encodedPayload = _base64Unpadded(_jsonToBase64Url.encode(_claims));
     var body = encodedHeader + '.' + encodedPayload;
     var signature =
         _base64Unpadded(base64Url.encode(signer.sign(utf8.encode(body))));
-    return new JWT._(encodedHeader, encodedPayload, signature);
+    return JWT._(encodedHeader, encodedPayload, signature);
   }
 }
 
@@ -360,7 +365,7 @@ class JWTHmacSha256Signer implements JWTSigner {
 
   @override
   List<int> sign(List<int> body) {
-    var hmac = new Hmac(sha256, secret);
+    final hmac = Hmac(sha256, secret);
     return hmac.convert(body).bytes;
   }
 
@@ -369,13 +374,14 @@ class JWTHmacSha256Signer implements JWTSigner {
     var actual = sign(body);
     if (actual.length == signature.length) {
       // constant-time comparison
-      bool isEqual = true;
+      var isEqual = true;
       for (var i = 0; i < actual.length; i++) {
         if (actual[i] != signature[i]) isEqual = false;
       }
       return isEqual;
-    } else
+    } else {
       return false;
+    }
   }
 }
 
@@ -395,7 +401,7 @@ class JWTValidator {
   /// Creates new validator. One can supply custom value for [currentTime]
   /// parameter, if not the `DateTime.now()` value is used by default.
   JWTValidator({DateTime currentTime})
-      : currentTime = currentTime ?? new DateTime.now();
+      : currentTime = currentTime ?? DateTime.now();
 
   /// Validates provided [token] and returns a list of validation errors.
   /// Empty list indicates there were no validation errors.
@@ -404,7 +410,7 @@ class JWTValidator {
   /// will also be verified. Otherwise signature must be verified manually using
   /// [JWT.verify] method.
   Set<String> validate(JWT token, {JWTSigner signer}) {
-    var errors = new Set<String>();
+    var errors = <String>{};
 
     var currentTimestamp = _secondsSinceEpoch(currentTime);
     if (token.expiresAt is int && currentTimestamp >= token.expiresAt) {
