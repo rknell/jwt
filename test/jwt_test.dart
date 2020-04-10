@@ -241,5 +241,17 @@ void main() {
       errors = validator.validate(token, signer: signer);
       expect(errors, isEmpty);
     });
+
+    test('it provides read-only access to headers', () {
+      builder..issuer = 'https://foobar.com';
+      var token = builder.getToken();
+
+      var headers = token.headers;
+      expect(headers['typ'], 'JWT');
+      expect(headers['alg'], 'none');
+      expect(() {
+        headers['kid'] = 'boom';
+      }, throwsUnsupportedError);
+    });
   });
 }

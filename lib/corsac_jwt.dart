@@ -176,11 +176,17 @@ class JWT {
     'jti'
   ];
 
+  /// Allows access to the full headers map.
+  ///
+  /// Returned map is read-only.
+  Map<String, String> get headers => Map.unmodifiable(_headers);
   Map<String, String> _headers;
-  Map<String, dynamic> _claims;
 
-  // Allows access to the full claims Map
+  /// Allows access to the full claims map.
+  ///
+  /// Returns modifiable copy of internal map object.
   Map<String, dynamic> get claims => Map.from(_claims);
+  Map<String, dynamic> _claims;
 
   /// Contains original Base64 encoded token header.
   final String encodedHeader;
