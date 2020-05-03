@@ -1,3 +1,7 @@
+## 0.2.2
+
+- Upgraded dependencies which fixes an issue with validating Firebase id tokens.
+
 ## 0.2.1
 
 - Added getter to access headers map (read-only).
