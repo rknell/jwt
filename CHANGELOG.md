@@ -1,3 +1,7 @@
+## 0.3.0
+
+- Upgraded dependencies.
+
 ## 0.2.2
 
 - Upgraded dependencies which fixes an issue with validating Firebase id tokens.

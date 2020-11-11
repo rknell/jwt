@@ -1,5 +1,5 @@
 name: corsac_jwt
-version: 0.2.3
+version: 0.3.0
 description: Lightweight implementation of JSON Web Tokens (JWT).
 homepage: https://github.com/corsac-dart/jwt
 author: Anatoly Pulyaevskiy <anatoly.pulyaevskiy@gmail.com>
@@ -16,5 +16,5 @@ dependencies:
 
 dev_dependencies:
   test: "^1.15.4"
-  test_coverage: "^0.4.3"
+  test_coverage: "^0.5.0"
   pedantic: "^1.9.2"
