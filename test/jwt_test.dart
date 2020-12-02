@@ -126,6 +126,21 @@ void main() {
       expect(parsedToken.getClaim('pld'), equals('payload'));
     });
 
+    test('it supports custom headers', () {
+      builder
+        ..issuer = 'https://foobar.com'
+        ..setHeader('x5t', 'payload');
+      var token = builder.getToken();
+      expect(token.issuer, equals('https://foobar.com'));
+      expect(token.headers['x5t'], equals('payload'));
+
+      var stringToken = token.toString();
+      var parsedToken = JWT.parse(stringToken);
+
+      expect(parsedToken.issuer, equals('https://foobar.com'));
+      expect(parsedToken.headers['x5t'], equals('payload'));
+    });
+
     test('validator uses current time by default', () {
       final validator = JWTValidator();
       expect(validator.currentTime, isNotNull);
