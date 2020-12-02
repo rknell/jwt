@@ -1,3 +1,7 @@
+## 0.4.0
+
+- Allow setting custom headers. See `JWTBuilder.setHeader` for details.
+
 ## 0.3.0
 
 - Upgraded dependencies.

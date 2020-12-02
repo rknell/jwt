@@ -141,6 +141,12 @@ void main() {
       expect(parsedToken.headers['x5t'], equals('payload'));
     });
 
+    test('it throws error for updating reserved headers', () {
+      expect(() {
+        builder.setHeader('typ', 'error');
+      }, throwsArgumentError);
+    });
+
     test('validator uses current time by default', () {
       final validator = JWTValidator();
       expect(validator.currentTime, isNotNull);

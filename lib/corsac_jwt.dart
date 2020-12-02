@@ -320,9 +320,8 @@ class JWTBuilder {
 
   /// Sets value of private (custom) claim.
   ///
-  /// One can not use this method to
-  /// set values of standard (reserved) claims, [JWTError] will be thrown in such
-  /// case.
+  /// This method cannot be used to
+  /// set values of standard (reserved) claims.
   void setClaim(String name, value) {
     if (JWT.reservedClaims.contains(name.toLowerCase())) {
       throw ArgumentError.value(
@@ -331,7 +330,9 @@ class JWTBuilder {
     _claims[name] = value;
   }
 
-  /// Sets value of protected headers.
+  /// Sets value of a private (custom) header.
+  ///
+  /// This method cannot be used to update standard (reserved) headers.
   void setHeader(String name, value) {
     if (JWT.reservedHeaders.contains(name.toLowerCase())) {
       throw ArgumentError.value(
